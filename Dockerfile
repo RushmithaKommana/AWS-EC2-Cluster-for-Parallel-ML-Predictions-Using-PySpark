@@ -1,6 +1,5 @@
 # Save the JDK version to be used in a variable
 ARG OPENJDK_VERSION=8
-
 # Get a base docker image based on JDK
 FROM openjdk:${OPENJDK_VERSION}-jre-slim
 
@@ -19,35 +18,25 @@ ENV PYSPARK_PYTHON="/opt/miniconda3/bin/python"
 # Install dependencies for our docker image
 RUN set -ex && \
     apt-get update && \
-    apt-get install -y curl bzip2 --no-install-recommends && \
-    curl -s -L --url "https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh" --output /tmp/miniconda.sh && \
+    apt-get install -y curl bzip2 wget --no-install-recommends && \
+    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
     bash /tmp/miniconda.sh -b -f -p "/opt/miniconda3" && \
     rm /tmp/miniconda.sh && \
-    conda config --set auto_update_conda true && \
-    conda config --set channel_priority false && \
-    echo "Updating Conda" && \
-    conda update conda -y --force-reinstall && \
-    conda install pip -y && \
-    conda clean -tipy && \
-    echo "Installing PySpark" && \
-    pip install --no-cache pyspark[$SPARK_EXTRAS]==${SPARK_VERSION} && \
-    pip install numpy && \
-    SPARK_HOME=$(python /opt/miniconda3/bin/find_spark_home.py) && \
-    echo "Setting SPARK_HOME" && \
-    echo "export SPARK_HOME=$(python3 /opt/miniconda3/bin/find_spark_home.py)" > /etc/profile.d/spark.sh && \
-    curl -s -L --url "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar" --output $SPARK_HOME/jars/aws-java-sdk-1.7.4.jar && \
-    curl -s -L --url "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar" --output $SPARK_HOME/jars/hadoop-aws-2.7.3.jar && \
-    mkdir -p $SPARK_HOME/conf && \
-    echo "spark.hadoop.fs.s3.impl=org.apache.hadoop.fs.s3a.S3AFileSystem" >> $SPARK_HOME/conf/spark-defaults.conf && \
-    apt-get remove -y curl bzip2 && \
+    . /opt/miniconda3/etc/profile.d/conda.sh && \
+    conda activate base && \
+    conda config --set auto_update_conda false && \
+    conda config --set channel_priority disabled && \
+    conda update -n base conda -y && \
+    conda install -y pip && \
+    pip install --no-cache pyspark${SPARK_EXTRAS:+[$SPARK_EXTRAS]}==${SPARK_VERSION} numpy && \
+    conda clean -afy && \
+    apt-get remove -y curl bzip2 wget && \
     apt-get autoremove -y && \
-    apt-get clean
-
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Set Working env as /mlprog
 ENV PROG_DIR /mlprog
-
-# Set filename of ML Python file
 ENV PROG_NAME wine_train.py
 ENV TRAIN_NAME TrainingDataset.csv
 ENV TEST_NAME ValidationDataset.csv
@@ -55,7 +44,7 @@ ENV TEST_NAME ValidationDataset.csv
 # Set Workdir as set in env variable PROG_DIR
 WORKDIR ${PROG_DIR}
 
-# Copy python files and datasets to work directory
+# Copy python files, and datasets to work directory
 COPY ${PROG_NAME} .
 COPY ${TRAIN_NAME} .
 COPY ${TEST_NAME} .
