@@ -25,13 +25,15 @@ RUN set -ex && \
     rm /tmp/miniconda.sh && \
     conda config --set auto_update_conda true && \
     conda config --set channel_priority false && \
+    echo "Updating Conda" && \
     conda update conda -y --force-reinstall && \
     conda install pip -y && \
     conda clean -tipy && \
-    echo "PATH=/opt/miniconda3/bin:\${PATH}" > /etc/profile.d/miniconda.sh && \
+    echo "Installing PySpark" && \
     pip install --no-cache pyspark[$SPARK_EXTRAS]==${SPARK_VERSION} && \
     pip install numpy && \
     SPARK_HOME=$(python /opt/miniconda3/bin/find_spark_home.py) && \
+    echo "Setting SPARK_HOME" && \
     echo "export SPARK_HOME=$(python3 /opt/miniconda3/bin/find_spark_home.py)" > /etc/profile.d/spark.sh && \
     curl -s -L --url "https://repo1.maven.org/maven2/com/amazonaws/aws-java-sdk/1.7.4/aws-java-sdk-1.7.4.jar" --output $SPARK_HOME/jars/aws-java-sdk-1.7.4.jar && \
     curl -s -L --url "https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-aws/2.7.3/hadoop-aws-2.7.3.jar" --output $SPARK_HOME/jars/hadoop-aws-2.7.3.jar && \
@@ -40,6 +42,7 @@ RUN set -ex && \
     apt-get remove -y curl bzip2 && \
     apt-get autoremove -y && \
     apt-get clean
+
 
 # Set Working env as /mlprog
 ENV PROG_DIR /mlprog
