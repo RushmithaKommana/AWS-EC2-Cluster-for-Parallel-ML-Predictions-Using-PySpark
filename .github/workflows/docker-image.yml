@@ -1,4 +1,4 @@
-name: Build and Push Docker Image
+name: Build and Push Docker Image (PySpark Wine)
 
 # Trigger the workflow on push or pull request to main branch
 on:
@@ -10,37 +10,37 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ubuntu-latest  # Use the latest Ubuntu environment
-    
+  build-and-push-docker:
+    runs-on: ubuntu-latest
+    environment: production
     steps:
-    # Step 1: Checkout the repository
-    - name: Checkout repository
-      uses: actions/checkout@v2
-    
-    # Step 2: Set up Docker Buildx (for multi-platform builds)
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v2
-    
-    # Step 3: Log in to Docker Hub using GitHub secrets
-    - name: Log in to Docker Hub
-      uses: docker/login-action@v2
-      with:
-        username: ${{ secrets.DOCKER_USERNAME }}  # Use secret for Docker username
-        password: ${{ secrets.DOCKER_PASSWORD }}  # Use secret for Docker password
-    
-    # Step 4: Build the Docker image
-    - name: Build Docker image
-      run: |
-        docker build -t ${{ secrets.DOCKER_USERNAME }}/pyspark-wine:${{ github.sha }} .
-    
-    # Step 5: Push the Docker image to Docker Hub
-    - name: Push Docker image
-      run: |
-        docker push ${{ secrets.DOCKER_USERNAME }}/pyspark-wine:${{ github.sha }}
+      # Step 1: Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-    # Step 6: Optionally, push the `latest` tag
-    - name: Push Docker image with latest tag
-      run: |
-        docker tag ${{ secrets.DOCKER_USERNAME }}/pyspark-wine:${{ github.sha }} ${{ secrets.DOCKER_USERNAME }}/pyspark-wine:latest
-        docker push ${{ secrets.DOCKER_USERNAME }}/pyspark-wine:latest
+      # Step 2: Set up Docker Buildx (for multi-platform builds)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Step 3: Log in to Docker Hub using GitHub secrets
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}  # Docker Hub username from secrets
+          password: ${{ secrets.DOCKERHUB_TOKEN }}  # Docker Hub token from secrets
+
+      # Step 4: Build and push Docker image
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/pyspark-wine:${{ github.sha }}  # Commit SHA tag
+          platforms: linux/amd64,linux/arm64  # Multi-platform support
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/pyspark-wine:cache  # Caching from registry
+          cache-to: type=inline,mode=max  # Cache to optimize the build process
+
+      # Step 5: Optionally, push the `latest` tag
+      - name: Push Docker image with latest tag
+        run: |
+          docker tag ${{ secrets.DOCKERHUB_USERNAME }}/pyspark-wine:${{ github.sha }} ${{ secrets.DOCKERHUB_USERNAME }}/pyspark-wine:latest
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/pyspark-wine:latest
