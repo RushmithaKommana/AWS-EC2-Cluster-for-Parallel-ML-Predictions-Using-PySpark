@@ -11,43 +11,53 @@ ARG SPARK_EXTRAS=
 LABEL org.opencontainers.image.title="Apache PySpark $SPARK_VERSION" \
       org.opencontainers.image.version=$SPARK_VERSION
 
-# Since we are using miniconda3, setting up environment path beforehand
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    curl \
+    bzip2 \
+    wget \
+    ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Download and install Miniconda
+RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/miniconda3 && \
+    rm /tmp/miniconda.sh
+
+# Set up environment variables
 ENV PATH="/opt/miniconda3/bin:${PATH}"
 ENV PYSPARK_PYTHON="/opt/miniconda3/bin/python"
 
-# Install dependencies for our docker image
-RUN set -ex && \
-    apt-get update && \
-    apt-get install -y curl bzip2 wget --no-install-recommends && \
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
-    bash /tmp/miniconda.sh -b -f -p "/opt/miniconda3" && \
-    rm /tmp/miniconda.sh && \
-    . /opt/miniconda3/etc/profile.d/conda.sh && \
-    conda activate base && \
+# Initialize conda and create a base environment
+RUN /opt/miniconda3/bin/conda init bash && \
+    . /root/.bashrc && \
     conda config --set auto_update_conda false && \
-    conda config --set channel_priority disabled && \
-    conda update -n base conda -y && \
-    conda install -y pip && \
-    pip install --no-cache pyspark${SPARK_EXTRAS:+[$SPARK_EXTRAS]}==${SPARK_VERSION} numpy && \
-    conda clean -afy && \
-    apt-get remove -y curl bzip2 wget && \
-    apt-get autoremove -y && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    conda config --set channel_priority disabled
 
-# Set Working env as /mlprog
+# Install PySpark and dependencies
+RUN conda install -y \
+    -c conda-forge \
+    python=3.8 \
+    openjdk=${OPENJDK_VERSION} \
+    pip && \
+    pip install --no-cache \
+    pyspark${SPARK_EXTRAS:+[$SPARK_EXTRAS]}==${SPARK_VERSION} \
+    numpy && \
+    conda clean -afy
+
+# Set Working directory
 ENV PROG_DIR /mlprog
 ENV PROG_NAME wine_train.py
 ENV TRAIN_NAME TrainingDataset.csv
 ENV TEST_NAME ValidationDataset.csv
 
-# Set Workdir as set in env variable PROG_DIR
 WORKDIR ${PROG_DIR}
 
-# Copy python files, and datasets to work directory
+# Copy project files
 COPY ${PROG_NAME} .
 COPY ${TRAIN_NAME} .
 COPY ${TEST_NAME} .
 
-# Set startup executable of docker as spark submit
+# Set startup executable
 ENTRYPOINT ["spark-submit", "wine_train.py"]
