@@ -14,11 +14,9 @@ LABEL org.opencontainers.image.title="Apache PySpark $SPARK_VERSION" \
 # Install system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-    curl \
-    bzip2 \
     wget \
-    ca-certificates && \
-    rm -rf /var/lib/apt/lists/*
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
 
 # Download and install Miniconda
 RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
@@ -29,7 +27,7 @@ RUN wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -
 ENV PATH="/opt/miniconda3/bin:${PATH}"
 ENV PYSPARK_PYTHON="/opt/miniconda3/bin/python"
 
-# Initialize conda and create a base environment
+# Initialize conda and set up environment
 RUN /opt/miniconda3/bin/conda init bash && \
     . /root/.bashrc && \
     conda config --set auto_update_conda false && \
